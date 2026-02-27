@@ -16,7 +16,7 @@ namespace SplatoonScriptsOfficial.Generic;
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        3,
+        4,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
@@ -50,10 +50,22 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         var fm = FateManager.Instance();
         if(fm == null) return false;
 
+        if(fm->GetCurrentFateId() == EventFateId) return true;
+        if(fm->SyncedFateId == EventFateId) return true;
+
         var fate = fm->GetFateById(EventFateId);
         if(fate == null) return false;
 
-        return fate->State is FateState.Preparing or FateState.Running or FateState.Ending;
+        if(fate->StartTimeEpoch == 0) return false;
+        return fate->State is FateState.Preparing or FateState.Running;
+    }
+
+    private static string GetFateDebug()
+    {
+        var fm = FateManager.Instance();
+        if(fm == null) return "FateManager=null";
+        var fate = fm->GetFateById(EventFateId);
+        return $"current={fm->GetCurrentFateId()} synced={fm->SyncedFateId} fateById={(fate != null)} state={(fate != null ? fate->State.ToString() : "-")} start={(fate != null ? fate->StartTimeEpoch : 0)}";
     }
 
     private IEnumerable<IBattleChara> GetCandidates()
@@ -124,6 +136,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     {
         ImGui.Text("Active in Ul'dah (territory 130).");
         ImGui.Text($"FATE 2042 active: {IsEventFateActive()}");
+        ImGui.Text($"FATE debug: {GetFateDebug()}");
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
         ImGui.Text("Action interval is fixed at 15s.");
         ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
