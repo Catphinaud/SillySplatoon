@@ -22,7 +22,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     );
     public override HashSet<uint>? ValidTerritories { get; } = [130];
     private static readonly HashSet<ushort> EventFateIds = [2042, 2043, 2044, 2045];
-    private const int ActionIntervalMs = 15000;
+    private const int ActionIntervalMs = 11000;
 
     // Fallback by DataId (from the original event script).
     private readonly Dictionary<uint, uint> _dataIdToActionId = new()
