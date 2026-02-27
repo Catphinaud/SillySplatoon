@@ -11,19 +11,21 @@ using Splatoon.SplatoonScripting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 namespace SplatoonScriptsOfficial.Generic;
 
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        7,
+        8,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
     public override HashSet<uint>? ValidTerritories { get; } = [130];
     private static readonly HashSet<ushort> EventFateIds = [2042, 2043, 2044, 2045];
     private const int ActionIntervalMs = 11000;
+    private const int NpcReuseWindowMs = 120000;
 
     // Fallback by DataId (from the original event script).
     private readonly Dictionary<uint, uint> _dataIdToActionId = new()
@@ -45,7 +47,14 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 
     private Config C => Controller.GetConfig<Config>();
     private int _targetIndex;
+    private readonly Dictionary<string, NpcUseRecord> _recentNpcUses = new();
     private static bool HasEventStatus() => Player.Status.Any(x => x.StatusId == 1494);
+
+    private sealed class NpcUseRecord
+    {
+        public Vector3 Position;
+        public long UsedAt;
+    }
     private bool IsEventFateActive()
     {
         var fm = FateManager.Instance();
@@ -61,12 +70,36 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         return $"current={fm->GetCurrentFateId()} accepted=2042/2043/2044/2045";
     }
 
+    private static string GetNpcKey(IBattleChara npc) => $"{npc.DataId}:{npc.Name.TextValue.Trim()}";
+
+    private void CleanupNpcUseCache(long now)
+    {
+        foreach(var key in _recentNpcUses.Where(x => now - x.Value.UsedAt > NpcReuseWindowMs).Select(x => x.Key).ToArray())
+        {
+            _recentNpcUses.Remove(key);
+        }
+    }
+
+    private bool IsNpcReadyForPoints(IBattleChara npc)
+    {
+        var key = GetNpcKey(npc);
+        if(!_recentNpcUses.TryGetValue(key, out var record)) return true;
+
+        var elapsed = Environment.TickCount64 - record.UsedAt;
+        if(elapsed > NpcReuseWindowMs) return true;
+
+        // If NPC moved enough since last successful action, treat it as a new scoring opportunity.
+        return Vector3.Distance(npc.Position, record.Position) >= C.NpcMovedThreshold;
+    }
+
     private IEnumerable<IBattleChara> GetCandidates()
     {
+        CleanupNpcUseCache(Environment.TickCount64);
         return Svc.Objects
             .OfType<IBattleChara>()
             .Where(x => x.IsTargetable && !x.IsDead && Player.DistanceTo(x) <= C.MaxDistance)
             .Where(x => _dataIdToActionId.ContainsKey(x.DataId) || _nameToActionId.ContainsKey(x.Name.TextValue))
+            .Where(IsNpcReadyForPoints)
             .OrderBy(Player.DistanceTo);
     }
 
@@ -89,11 +122,17 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         if(C.TargetOnlyMode) return;
         if(!EzThrottler.Check("LittleLadies2026_UseAny")) return;
         if(Svc.Targets.Target is not IBattleChara target) return;
+        if(!IsNpcReadyForPoints(target)) return;
         if(!TryGetMappedAction(target, out var actionId)) return;
 
         if(TryUseMappedAction(actionId, target.GameObjectId))
         {
             EzThrottler.Throttle("LittleLadies2026_UseAny", ActionIntervalMs, true);
+            _recentNpcUses[GetNpcKey(target)] = new()
+            {
+                Position = target.Position,
+                UsedAt = Environment.TickCount64
+            };
         }
     }
 
@@ -133,14 +172,17 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         ImGui.Text($"FATE debug: {GetFateDebug()}");
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
         ImGui.Text("Action interval is fixed at 11s.");
+        ImGui.Text($"NPC reuse window: {NpcReuseWindowMs / 1000}s");
         ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
         ImGui.Checkbox("Retarget off players", ref C.RetargetOffPlayers);
         ImGui.Checkbox("Target-only mode (do not use actions)", ref C.TargetOnlyMode);
         ImGui.InputInt("Max target distance", ref C.MaxDistance);
         ImGui.InputInt("Retarget throttle (ms)", ref C.RetargetMs);
+        ImGui.DragFloat("NPC moved threshold", ref C.NpcMovedThreshold, 0.05f, 0.1f, 5f);
 
         C.MaxDistance = Math.Clamp(C.MaxDistance, 3, 80);
         C.RetargetMs = Math.Clamp(C.RetargetMs, 100, 5000);
+        C.NpcMovedThreshold = Math.Clamp(C.NpcMovedThreshold, 0.1f, 5f);
     }
 
     public class Config : IEzConfig
@@ -150,5 +192,6 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
+        public float NpcMovedThreshold = 0.9f;
     }
 }
