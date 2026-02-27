@@ -16,7 +16,7 @@ namespace SplatoonScriptsOfficial.Generic;
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        4,
+        3,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
@@ -45,27 +45,19 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     private Config C => Controller.GetConfig<Config>();
     private int _targetIndex;
     private static bool HasEventStatus() => Player.Status.Any(x => x.StatusId == 1494);
-    private static bool IsEventFateActive()
+    private bool IsEventFateActive()
     {
         var fm = FateManager.Instance();
         if(fm == null) return false;
-
-        if(fm->GetCurrentFateId() == EventFateId) return true;
-        if(fm->SyncedFateId == EventFateId) return true;
-
-        var fate = fm->GetFateById(EventFateId);
-        if(fate == null) return false;
-
-        if(fate->StartTimeEpoch == 0) return false;
-        return fate->State is FateState.Preparing or FateState.Running;
+        var current = fm->GetCurrentFateId();
+        return current == EventFateId || current == C.AltFateId;
     }
 
-    private static string GetFateDebug()
+    private string GetFateDebug()
     {
         var fm = FateManager.Instance();
         if(fm == null) return "FateManager=null";
-        var fate = fm->GetFateById(EventFateId);
-        return $"current={fm->GetCurrentFateId()} synced={fm->SyncedFateId} fateById={(fate != null)} state={(fate != null ? fate->State.ToString() : "-")} start={(fate != null ? fate->StartTimeEpoch : 0)}";
+        return $"current={fm->GetCurrentFateId()} accepted={EventFateId}/{C.AltFateId}";
     }
 
     private IEnumerable<IBattleChara> GetCandidates()
@@ -140,10 +132,12 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
         ImGui.Text("Action interval is fixed at 15s.");
         ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
+        ImGui.InputInt("Alternate FATE ID", ref C.AltFateId);
         ImGui.Checkbox("Target-only mode (do not use actions)", ref C.TargetOnlyMode);
         ImGui.InputInt("Max target distance", ref C.MaxDistance);
         ImGui.InputInt("Retarget throttle (ms)", ref C.RetargetMs);
 
+        C.AltFateId = Math.Clamp(C.AltFateId, 0, 65535);
         C.MaxDistance = Math.Clamp(C.MaxDistance, 3, 80);
         C.RetargetMs = Math.Clamp(C.RetargetMs, 100, 5000);
     }
@@ -151,6 +145,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     public class Config : IEzConfig
     {
         public bool RequireFate2042Active = false;
+        public int AltFateId = 20444;
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
