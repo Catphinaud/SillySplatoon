@@ -1,5 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using ECommons.Configuration;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
@@ -16,7 +17,7 @@ namespace SplatoonScriptsOfficial.Generic;
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        6,
+        7,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
@@ -108,6 +109,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     {
         if(C.RequireFate2042Active && !IsEventFateActive()) return;
         if(!HasEventStatus()) return;
+        if(!C.RetargetOffPlayers && Svc.Targets.Target is IPlayerCharacter) return;
 
         var candidates = GetCandidates().ToList();
         if(candidates.Count == 0) return;
@@ -130,8 +132,9 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         ImGui.Text($"FATE 2042 active: {IsEventFateActive()}");
         ImGui.Text($"FATE debug: {GetFateDebug()}");
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
-        ImGui.Text("Action interval is fixed at 15s.");
+        ImGui.Text("Action interval is fixed at 11s.");
         ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
+        ImGui.Checkbox("Retarget off players", ref C.RetargetOffPlayers);
         ImGui.Checkbox("Target-only mode (do not use actions)", ref C.TargetOnlyMode);
         ImGui.InputInt("Max target distance", ref C.MaxDistance);
         ImGui.InputInt("Retarget throttle (ms)", ref C.RetargetMs);
@@ -143,6 +146,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     public class Config : IEzConfig
     {
         public bool RequireFate2042Active = true;
+        public bool RetargetOffPlayers = false;
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
