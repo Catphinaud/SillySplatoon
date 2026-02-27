@@ -16,7 +16,7 @@ namespace SplatoonScriptsOfficial.Generic;
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        2,
+        3,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
@@ -102,7 +102,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 
     public override void OnUpdate()
     {
-        if(!IsEventFateActive()) return;
+        if(C.RequireFate2042Active && !IsEventFateActive()) return;
         if(!HasEventStatus()) return;
 
         var candidates = GetCandidates().ToList();
@@ -126,6 +126,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         ImGui.Text($"FATE 2042 active: {IsEventFateActive()}");
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
         ImGui.Text("Action interval is fixed at 15s.");
+        ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
         ImGui.Checkbox("Target-only mode (do not use actions)", ref C.TargetOnlyMode);
         ImGui.InputInt("Max target distance", ref C.MaxDistance);
         ImGui.InputInt("Retarget throttle (ms)", ref C.RetargetMs);
@@ -136,6 +137,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 
     public class Config : IEzConfig
     {
+        public bool RequireFate2042Active = false;
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
