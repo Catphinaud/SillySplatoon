@@ -142,7 +142,7 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 
     public class Config : IEzConfig
     {
-        public bool RequireFate2042Active = false;
+        public bool RequireFate2042Active = true;
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
