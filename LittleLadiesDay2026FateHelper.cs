@@ -16,13 +16,13 @@ namespace SplatoonScriptsOfficial.Generic;
 public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
 {
     public override Metadata Metadata { get; } = new(
-        5,
+        6,
         "Catphinaud",
         "Little Ladies Day 2026 helper: targets Picot/Ulala/Narumi/Masha during active FATE"
     );
     public override HashSet<uint>? ValidTerritories { get; } = [130];
-    private const ushort EventFateId = 2042;
-    private const int ActionIntervalMs = 12000;
+    private static readonly HashSet<ushort> EventFateIds = [2042, 2043, 2044, 2045];
+    private const int ActionIntervalMs = 15000;
 
     // Fallback by DataId (from the original event script).
     private readonly Dictionary<uint, uint> _dataIdToActionId = new()
@@ -50,14 +50,14 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         var fm = FateManager.Instance();
         if(fm == null) return false;
         var current = fm->GetCurrentFateId();
-        return current == EventFateId || current == C.AltFateId;
+        return EventFateIds.Contains(current);
     }
 
     private string GetFateDebug()
     {
         var fm = FateManager.Instance();
         if(fm == null) return "FateManager=null";
-        return $"current={fm->GetCurrentFateId()} accepted={EventFateId}/{C.AltFateId}";
+        return $"current={fm->GetCurrentFateId()} accepted=2042/2043/2044/2045";
     }
 
     private IEnumerable<IBattleChara> GetCandidates()
@@ -132,12 +132,10 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
         ImGui.Text($"Has status 1494: {HasEventStatus()}");
         ImGui.Text("Action interval is fixed at 15s.");
         ImGui.Checkbox("Require FATE 2042 to be active", ref C.RequireFate2042Active);
-        ImGui.InputInt("Alternate FATE ID", ref C.AltFateId);
         ImGui.Checkbox("Target-only mode (do not use actions)", ref C.TargetOnlyMode);
         ImGui.InputInt("Max target distance", ref C.MaxDistance);
         ImGui.InputInt("Retarget throttle (ms)", ref C.RetargetMs);
 
-        C.AltFateId = Math.Clamp(C.AltFateId, 0, 65535);
         C.MaxDistance = Math.Clamp(C.MaxDistance, 3, 80);
         C.RetargetMs = Math.Clamp(C.RetargetMs, 100, 5000);
     }
@@ -145,7 +143,6 @@ public unsafe class LittleLadiesDay2026FateHelper : SplatoonScript
     public class Config : IEzConfig
     {
         public bool RequireFate2042Active = false;
-        public int AltFateId = 20444;
         public bool TargetOnlyMode = false;
         public int MaxDistance = 35;
         public int RetargetMs = 250;
